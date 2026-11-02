@@ -1,5 +1,6 @@
 package com.sergioalexo.mediamover.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -37,15 +38,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.sergioalexo.mediamover.data.Storage
 import java.io.File
 
-/** Plain File-based browser — works because we hold All files access, and shows real paths (SAF can't). */
+/** Full-screen folder browser, drawn over the editor. Plain File-based — works because we hold All files access, and shows real paths (SAF can't). */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FolderPickerDialog(start: String, onDismiss: () -> Unit, onPick: (String) -> Unit) {
+fun FolderPicker(start: String, onDismiss: () -> Unit, onPick: (String) -> Unit) {
     val root = remember { Storage.root }
     var current by remember {
         mutableStateOf(Storage.resolve(start).takeIf { start.isNotBlank() && it.isDirectory } ?: root)
@@ -59,52 +58,51 @@ fun FolderPickerDialog(start: String, onDismiss: () -> Unit, onPick: (String) ->
     }
     val atRoot = current == root
 
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
-            Column(Modifier.systemBarsPadding()) {
-                TopAppBar(
-                    title = { Text(if (atRoot) "Internal storage" else current.name) },
-                    navigationIcon = {
-                        IconButton(onClick = { if (atRoot) onDismiss() else current = current.parentFile ?: root }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Up")
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = { creating = true }) { Icon(Icons.Filled.Add, "New folder") }
-                    },
-                )
-                Text(
-                    "/" + Storage.relative(current),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
-                )
-                HorizontalDivider()
-                Box(Modifier.weight(1f)) {
-                    when {
-                        children == null -> Box(Modifier.padding(16.dp)) {
-                            Hint("Android doesn't let apps open this folder.")
-                        }
-                        children.isEmpty() -> Box(Modifier.padding(16.dp)) { Hint("No subfolders.") }
-                        else -> LazyColumn {
-                            items(children, key = { it.path }) { dir ->
-                                ListItem(
-                                    headlineContent = { Text(dir.name) },
-                                    trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
-                                    modifier = Modifier.clickable { current = dir },
-                                )
-                            }
+    BackHandler { if (atRoot) onDismiss() else current = current.parentFile ?: root }
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.systemBarsPadding()) {
+            TopAppBar(
+                title = { Text(if (atRoot) "Internal storage" else current.name) },
+                navigationIcon = {
+                    IconButton(onClick = { if (atRoot) onDismiss() else current = current.parentFile ?: root }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Up")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { creating = true }) { Icon(Icons.Filled.Add, "New folder") }
+                },
+            )
+            Text(
+                "/" + Storage.relative(current),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+            HorizontalDivider()
+            Box(Modifier.weight(1f)) {
+                when {
+                    children == null -> Box(Modifier.padding(16.dp)) {
+                        Hint("Android doesn't let apps open this folder.")
+                    }
+                    children.isEmpty() -> Box(Modifier.padding(16.dp)) { Hint("No subfolders.") }
+                    else -> LazyColumn {
+                        items(children, key = { it.path }) { dir ->
+                            ListItem(
+                                headlineContent = { Text(dir.name) },
+                                trailingContent = { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null) },
+                                modifier = Modifier.clickable { current = dir },
+                            )
                         }
                     }
                 }
-                HorizontalDivider()
-                Row(
-                    Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                ) {
-                    TextButton(onClick = onDismiss) { Text("Cancel") }
-                    Button(onClick = { onPick(Storage.relative(current)) }, enabled = !atRoot) { Text("Use this folder") }
-                }
+            }
+            HorizontalDivider()
+            Row(
+                Modifier.fillMaxWidth().padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            ) {
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+                Button(onClick = { onPick(Storage.relative(current)) }, enabled = !atRoot) { Text("Use this folder") }
             }
         }
     }

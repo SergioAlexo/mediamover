@@ -1,11 +1,13 @@
 package com.sergioalexo.mediamover.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -59,180 +61,184 @@ fun EditorScreen(initial: Rule?, onSave: (Rule) -> Unit, onDelete: (String) -> U
     var confirmDelete by remember { mutableStateOf(false) }
     val valid = draft.name.isNotBlank() && draft.sources.isNotEmpty() && draft.destination.isNotBlank()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(if (initial == null) "New rule" else "Edit rule") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
-                },
-                actions = {
-                    if (initial != null) {
-                        IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Filled.Delete, "Delete rule") }
+    // Picker is drawn over the editor rather than in a Dialog window: on Android 15 the dialog window kept
+    // full-screen height below the status bar, hiding its "Use this folder" row off-screen.
+    Box(Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text(if (initial == null) "New rule" else "Edit rule") },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+                    },
+                    actions = {
+                        if (initial != null) {
+                            IconButton(onClick = { confirmDelete = true }) { Icon(Icons.Filled.Delete, "Delete rule") }
+                        }
+                        TextButton(onClick = { onSave(draft.copy(name = draft.name.trim())) }, enabled = valid) { Text("Save") }
+                    },
+                )
+            },
+        ) { padding ->
+            Column(
+                Modifier
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp),
+            ) {
+                Section("Quick pick") {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Presets.all.forEach { preset ->
+                            AssistChip(
+                                onClick = {
+                                    val found = Presets.detect(preset)
+                                    draft = draft.copy(
+                                        name = draft.name.ifBlank { preset.name },
+                                        sources = (draft.sources + found).distinct(),
+                                    )
+                                    presetNote = if (found.isEmpty()) {
+                                        "No ${preset.name} folders on this phone yet" +
+                                            if (preset.name == "Telegram") " — turn on “Save to Gallery” in Telegram." else "."
+                                    } else {
+                                        "Added ${found.size} ${preset.name} folder(s)."
+                                    }
+                                },
+                                label = { Text(preset.name) },
+                            )
+                        }
                     }
-                    TextButton(onClick = { onSave(draft.copy(name = draft.name.trim())) }, enabled = valid) { Text("Save") }
-                },
-            )
-        },
-    ) { padding ->
-        Column(
-            Modifier
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
-        ) {
-            Section("Quick pick") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Presets.all.forEach { preset ->
-                        AssistChip(
-                            onClick = {
-                                val found = Presets.detect(preset)
-                                draft = draft.copy(
-                                    name = draft.name.ifBlank { preset.name },
-                                    sources = (draft.sources + found).distinct(),
-                                )
-                                presetNote = if (found.isEmpty()) {
-                                    "No ${preset.name} folders on this phone yet" +
-                                        if (preset.name == "Telegram") " — turn on “Save to Gallery” in Telegram." else "."
-                                } else {
-                                    "Added ${found.size} ${preset.name} folder(s)."
-                                }
-                            },
-                            label = { Text(preset.name) },
-                        )
+                    presetNote?.let { Hint(it) }
+                }
+
+                OutlinedTextField(
+                    value = draft.name,
+                    onValueChange = { draft = draft.copy(name = it) },
+                    label = { Text("Rule name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
+                Section("Take files from") {
+                    if (draft.sources.isEmpty()) Hint("No folders yet.")
+                    draft.sources.forEach { source ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("/$source", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                            IconButton(onClick = { draft = draft.copy(sources = draft.sources - source) }) {
+                                Icon(Icons.Filled.Close, "Remove")
+                            }
+                        }
+                    }
+                    OutlinedButton(onClick = { pickFor = PickFor.SOURCE }) {
+                        Icon(Icons.Filled.Add, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Add folder")
                     }
                 }
-                presetNote?.let { Hint(it) }
-            }
 
-            OutlinedTextField(
-                value = draft.name,
-                onValueChange = { draft = draft.copy(name = it) },
-                label = { Text("Rule name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Section("Take files from") {
-                if (draft.sources.isEmpty()) Hint("No folders yet.")
-                draft.sources.forEach { source ->
+                Section("Put them in") {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("/$source", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { draft = draft.copy(sources = draft.sources - source) }) {
-                            Icon(Icons.Filled.Close, "Remove")
+                        Text("/${draft.destination}", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        OutlinedButton(onClick = { pickFor = PickFor.DESTINATION }) { Text("Choose") }
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Download", "Download/${draft.name.trim().ifBlank { "Media" }}").distinct().forEach { choice ->
+                            FilterChip(
+                                selected = draft.destination == choice,
+                                onClick = { draft = draft.copy(destination = choice) },
+                                label = { Text(choice) },
+                            )
                         }
                     }
                 }
-                OutlinedButton(onClick = { pickFor = PickFor.SOURCE }) {
-                    Icon(Icons.Filled.Add, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Add folder")
-                }
-            }
 
-            Section("Put them in") {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("/${draft.destination}", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                    OutlinedButton(onClick = { pickFor = PickFor.DESTINATION }) { Text("Choose") }
+                Section("Action") {
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        TransferMode.entries.forEachIndexed { i, mode ->
+                            SegmentedButton(
+                                selected = draft.mode == mode,
+                                onClick = { draft = draft.copy(mode = mode) },
+                                shape = SegmentedButtonDefaults.itemShape(i, TransferMode.entries.size),
+                            ) { Text(mode.label) }
+                        }
+                    }
+                    Hint(
+                        if (draft.mode == TransferMode.MOVE) {
+                            "Moved files show as “media not found” inside the chat. The files themselves are safe in the new folder."
+                        } else {
+                            "Originals stay where they are; files already copied are recognised and not copied again."
+                        }
+                    )
                 }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Download", "Download/${draft.name.trim().ifBlank { "Media" }}").distinct().forEach { choice ->
-                        FilterChip(
-                            selected = draft.destination == choice,
-                            onClick = { draft = draft.copy(destination = choice) },
-                            label = { Text(choice) },
-                        )
+
+                Section("File types") {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FileKind.entries.forEach { kind ->
+                            FilterChip(
+                                selected = kind in draft.kinds,
+                                onClick = {
+                                    draft = draft.copy(kinds = if (kind in draft.kinds) draft.kinds - kind else draft.kinds + kind)
+                                },
+                                label = { Text(kind.label) },
+                            )
+                        }
+                    }
+                    Hint(if (draft.kinds.isEmpty()) "Nothing selected = all files." else "Only the selected types are moved.")
+                }
+
+                Section("Options") {
+                    SwitchRow("Include subfolders", "e.g. WhatsApp Images, WhatsApp Video…", draft.includeSubfolders) {
+                        draft = draft.copy(includeSubfolders = it)
+                    }
+                    SwitchRow("Skip “Sent” folders", "Leave media you sent yourself where it is", draft.skipSent) {
+                        draft = draft.copy(skipSent = it)
+                    }
+                    SwitchRow("Keep folder structure", "Recreate subfolders in the destination", draft.keepStructure) {
+                        draft = draft.copy(keepStructure = it)
                     }
                 }
-            }
 
-            Section("Action") {
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    TransferMode.entries.forEachIndexed { i, mode ->
-                        SegmentedButton(
-                            selected = draft.mode == mode,
-                            onClick = { draft = draft.copy(mode = mode) },
-                            shape = SegmentedButtonDefaults.itemShape(i, TransferMode.entries.size),
-                        ) { Text(mode.label) }
+                Section("If a file with the same name exists") {
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        ConflictPolicy.entries.forEachIndexed { i, policy ->
+                            SegmentedButton(
+                                selected = draft.conflict == policy,
+                                onClick = { draft = draft.copy(conflict = policy) },
+                                shape = SegmentedButtonDefaults.itemShape(i, ConflictPolicy.entries.size),
+                            ) { Text(policy.label) }
+                        }
                     }
+                    Hint("Rename saves it as “name (1).jpg”.")
                 }
-                Hint(
-                    if (draft.mode == TransferMode.MOVE) {
-                        "Moved files show as “media not found” inside the chat. The files themselves are safe in the new folder."
-                    } else {
-                        "Originals stay where they are; files already copied are recognised and not copied again."
-                    }
-                )
-            }
 
-            Section("File types") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FileKind.entries.forEach { kind ->
-                        FilterChip(
-                            selected = kind in draft.kinds,
-                            onClick = {
-                                draft = draft.copy(kinds = if (kind in draft.kinds) draft.kinds - kind else draft.kinds + kind)
-                            },
-                            label = { Text(kind.label) },
-                        )
+                Section("Wait before moving") {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        waitChoices.forEach { (seconds, label) ->
+                            FilterChip(
+                                selected = draft.minAgeSeconds == seconds,
+                                onClick = { draft = draft.copy(minAgeSeconds = seconds) },
+                                label = { Text(label) },
+                            )
+                        }
                     }
+                    Hint("Files newer than this are left alone so downloads can finish.")
                 }
-                Hint(if (draft.kinds.isEmpty()) "Nothing selected = all files." else "Only the selected types are moved.")
-            }
-
-            Section("Options") {
-                SwitchRow("Include subfolders", "e.g. WhatsApp Images, WhatsApp Video…", draft.includeSubfolders) {
-                    draft = draft.copy(includeSubfolders = it)
-                }
-                SwitchRow("Skip “Sent” folders", "Leave media you sent yourself where it is", draft.skipSent) {
-                    draft = draft.copy(skipSent = it)
-                }
-                SwitchRow("Keep folder structure", "Recreate subfolders in the destination", draft.keepStructure) {
-                    draft = draft.copy(keepStructure = it)
-                }
-            }
-
-            Section("If a file with the same name exists") {
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    ConflictPolicy.entries.forEachIndexed { i, policy ->
-                        SegmentedButton(
-                            selected = draft.conflict == policy,
-                            onClick = { draft = draft.copy(conflict = policy) },
-                            shape = SegmentedButtonDefaults.itemShape(i, ConflictPolicy.entries.size),
-                        ) { Text(policy.label) }
-                    }
-                }
-                Hint("Rename saves it as “name (1).jpg”.")
-            }
-
-            Section("Wait before moving") {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    waitChoices.forEach { (seconds, label) ->
-                        FilterChip(
-                            selected = draft.minAgeSeconds == seconds,
-                            onClick = { draft = draft.copy(minAgeSeconds = seconds) },
-                            label = { Text(label) },
-                        )
-                    }
-                }
-                Hint("Files newer than this are left alone so downloads can finish.")
             }
         }
-    }
 
-    pickFor?.let { target ->
-        FolderPickerDialog(
-            start = if (target == PickFor.DESTINATION) draft.destination else draft.sources.lastOrNull().orEmpty(),
-            onDismiss = { pickFor = null },
-            onPick = { picked ->
-                draft = when (target) {
-                    PickFor.SOURCE -> draft.copy(sources = (draft.sources + picked).distinct())
-                    PickFor.DESTINATION -> draft.copy(destination = picked)
-                }
-                pickFor = null
-            },
-        )
+        pickFor?.let { target ->
+            FolderPicker(
+                start = if (target == PickFor.DESTINATION) draft.destination else draft.sources.lastOrNull().orEmpty(),
+                onDismiss = { pickFor = null },
+                onPick = { picked ->
+                    draft = when (target) {
+                        PickFor.SOURCE -> draft.copy(sources = (draft.sources + picked).distinct())
+                        PickFor.DESTINATION -> draft.copy(destination = picked)
+                    }
+                    pickFor = null
+                },
+            )
+        }
     }
 
     if (confirmDelete && initial != null) {

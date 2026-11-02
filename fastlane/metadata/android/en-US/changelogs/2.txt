@@ -1,0 +1,1 @@
+Fix: the folder picker's "Use this folder" button was off-screen, so you couldn't choose a destination other than Download.
