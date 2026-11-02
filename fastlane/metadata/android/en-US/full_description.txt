@@ -1,0 +1,16 @@
+<p>MediaMover automatically moves (or copies) media that messenger apps save, such as WhatsApp, Telegram, Viber, Instagram and Messenger, into a folder you choose, e.g. <i>Download/</i>.</p>
+<p><b>Features</b></p>
+<ul>
+<li>Rules: one or more source folders to a destination, with quick-pick chips that detect where each messenger stores files on your phone</li>
+<li>Per rule: move or copy, file types, include subfolders, skip WhatsApp "Sent" folders, keep folder structure, name-clash policy, minimum file age</li>
+<li>Runs automatically about 15 seconds after new media appears, plus an optional periodic safety-net run</li>
+<li>"Run now" and a dry-run "Preview"</li>
+<li>Activity log with "Undo last"</li>
+<li>Moves are instant same-volume renames, with a verified copy-then-delete fallback; the media library is rescanned so Photos and Files see the new location</li>
+</ul>
+<p><b>Notes</b></p>
+<ul>
+<li>Needs "All files access", which is the only way to read <i>Android/media/com.whatsapp/</i></li>
+<li>Telegram keeps its cache in <i>Android/data/</i>, which no app can read. Turn on Telegram, Settings, Chat Settings, Save to Gallery</li>
+<li>Moving WhatsApp/Viber media makes it show as "media not found" inside the chat. Use Copy mode if that matters</li>
+</ul>

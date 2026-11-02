@@ -53,6 +53,11 @@ android {
     buildFeatures {
         compose = true
     }
+    // F-Droid rejects the Google-encrypted dependency metadata blob AGP adds by default.
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
 }
 
 dependencies {
