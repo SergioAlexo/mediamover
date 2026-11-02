@@ -34,10 +34,14 @@ Output: `app/build/outputs/apk/release/app-release.apk`. Release signing reads `
 (gitignored: `storeFile`, `storePassword`, `keyAlias`, `keyPassword`); without it the debug key is used.
 Keep the same key for every build, or Android will refuse to update the installed app.
 
-On this Windows PC Gradle needs `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=C:/Users/PashchenkoS/.jtmp`
-(the short `PASHCH~1` temp path breaks JDK's loopback socket).
+On Windows, if Gradle fails with "Unable to establish loopback connection" (a short 8.3 `TEMP` path like
+`USERNA~1` breaks JDK's loopback socket), set `JAVA_TOOL_OPTIONS=-Djdk.net.unixdomain.tmpdir=C:/some/short/dir`.
 
 ## Install on the phone
 
 USB: enable Developer options → USB debugging, then `adb install -r app/build/outputs/apk/release/app-release.apk`.
 Or copy the APK to the phone and open it (allow "Install unknown apps" for Files).
+
+## License
+
+[MIT](LICENSE)
